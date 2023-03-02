@@ -1,13 +1,36 @@
-import { ref } from "vue";
+import { isRef, ref, unref, watchEffect } from "vue";
+import type { Manhwa } from "../types";
 
 export function useFetch(url: string) {
-  const data = ref(null);
-  const error = ref(null);
+  const data = ref<Manhwa[]|null>(null);
+  const error = ref<Error|null>(null);
+  const loading = ref(false);
 
-  fetch(url)
-    .then((res) => res.json())
-    .then((json) => (data.value = json))
-    .catch((err) => (error.value = err));
+  async function doFetch() {
+    data.value = null;
+    error.value = null;
 
-  return { data, error };
+    const urlValue = unref(url);
+
+    loading.value = true;
+    try {
+      const res = await fetch(urlValue);
+      data.value = await res.json();
+
+    } catch (err) {
+      error.value = err as Error;
+      console.error(err);
+    } finally {
+      loading.value = false;
+    }
+
+  }
+
+  if (isRef(url)) {
+    watchEffect(doFetch);
+  } else {
+    doFetch();
+  }
+
+  return { data, error, loading};
 }
